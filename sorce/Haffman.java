@@ -21,6 +21,7 @@ public class Haffman {
 
 	//выход
 	private String compressBinaryMessage;
+	int middleLen;
 	
 	//для работы алгоритма
 	private Map<String, Integer> countAlphabet;
@@ -29,6 +30,7 @@ public class Haffman {
 	
 	private Vector<Character> code;
 	private Map<String, String> tableCode;
+	
 	
 	public Haffman(String binaryMessage, int len) {
 		this.len = len;
@@ -40,20 +42,75 @@ public class Haffman {
 		code = new Vector<Character>();
 		tableCode = new TreeMap<String, String>();
 		compressBinaryMessage = new String();
+		middleLen = 0;
+	}
+	
+	public void compress() {
+		//проверка на кратность при делении binaryMessage.size() / len 
+		//исправление в случае ошибки
+		correctionNoDivisionSizeMessage();
+		
 		//разбиение сообщения на блоки
 		splitingArray();
 		//рассортировка букв в  alphabet из файла по len-длине блока
 		countingRelativeFrequencyLetters();
+		
 		buildingBinaryTree();
-		print(root, 0);
+		
 		buildingTableCode(root);
-		System.out.println(tableCode);
+		
 		compressingBinaryMessage();
+		
+		calcMiddleLenBlock();
+	}
+	
+	
+	public boolean isCheckDivisionSizeMessageOnLen() {
+		//проверка на кратность при делении binaryMessage.size() / len
+		return (binaryMessage.length() % len != 0)? true : false;
+	}
+	
+	public void correctionNoDivisionSizeMessage() {
+		//проверка на кратность при делении binaryMessage.size() / len 
+		//исправление в случае ошибки
+		if (isCheckDivisionSizeMessageOnLen()) {
+			int mod = binaryMessage.length() % len;
+			for (int i = 0; i < mod; i++) {
+				StringBuilder strBuilder = new StringBuilder(binaryMessage);
+				binaryMessage = strBuilder.insert(0, '0').toString();
+			}	
+		}
+	}
+	
+	public void calcMiddleLenBlock() {
+		for (String i: blockMessage) {
+			middleLen += tableCode.get(i).length();
+		}
+		middleLen /= blockMessage.size();
+	}
+	
+	public void toResultCompress() {
 		//результат уменьшения информации
-		System.out.printf("n0 / n = %d / %d = %.2f\n", binaryMessage.length(), 
-			compressBinaryMessage.length(), (double)binaryMessage.length() / compressBinaryMessage.length());
+		System.out.println("Message = " + binaryMessage);
+		System.out.println("alphabet = " + countAlphabet);
 		
+		System.out.println("Tree: ");
+		print(root, 0);
 		
+		System.out.println("ListCode: ");
+		System.out.println(tableCode);
+		
+		System.out.println("CodeString = " + compressBinaryMessage);
+		
+		int binMessLen = binaryMessage.length();
+		int comprBinMessLen = compressBinaryMessage.length();
+		
+		System.out.printf("n0 / n = %d / %d = %.2f\n", binMessLen, 
+				comprBinMessLen, (double)binMessLen / comprBinMessLen);
+		//изменение длины блока после кодирования
+		System.out.println("len block = " + len);
+		System.out.println("middle len block = " + middleLen);
+		System.out.printf("len block / middle len block = %.2f\n", (double)len / middleLen);
 	}
 	
 	private void splitingArray() {
@@ -66,20 +123,6 @@ public class Haffman {
 			blockMessage.add(new String(arr) );
 			
 		}
-		
-		int mod = binaryMessage.length() % len;
-		if (mod != 0) {
-			int numBlock = blockMessage.size();
-			
-			char[] arr = new char[len];
-			for (int i = 0; i < len; i++) 
-				arr[i] = '0';
-			
-			//заполнять блок от len-mod индекса
-			binaryMessage.getChars(numBlock*len, binaryMessage.length(), arr, len-mod);
-			
-			blockMessage.add(new String(arr));
-		}
 	}
 	
 	//подсчет относ частоты букв
@@ -90,7 +133,7 @@ public class Haffman {
 			if (count == null) count = 0;
 			countAlphabet.put(blockMessage.get(i), count +1);
 		}
-		System.out.println(countAlphabet);
+		
 	}
 	
 	
@@ -135,7 +178,6 @@ public class Haffman {
 		for (String i: blockMessage) {
 			compressBinaryMessage += tableCode.get(i);
 		}
-		System.out.println("CodeString = " + compressBinaryMessage);
 	}
 	
 	public void buildingTableCode(Node node) {
