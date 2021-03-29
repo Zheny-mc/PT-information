@@ -6,17 +6,6 @@ import java.util.Vector;
 import java.util.Map.Entry;
 
 public class Shennon {
-	/*
-		//compress
-		//*********************************************
-		mapCountAlphabetToLinkedList();
-		System.out.println(listsTree);
-		//**********************************************
-		
-		Node root = new Node(null, listsTree.size());
-		buildingBinaryTree(listsTree, root);
-		print(root, 0);
-	*/
 	
 	//вход для алгоритма
 	private int len;
@@ -30,10 +19,16 @@ public class Shennon {
 	
 	private Vector<Character> code;
 	private Map<String, String> tableCode;
+	//кол-во незначащих нулей
+	private int numberInsignificantBits;
 	
 	//выход
 	private String compressBinaryMessage;
-	int middleLen;
+	private double middleLen;
+	private double averageSizeOneBlock;
+	
+	//для вывода
+	private LinkedList<Node> listsForPrint;
 	
 	public Shennon(String binaryMessage, int len) {
 		this.len = len;
@@ -45,7 +40,9 @@ public class Shennon {
 		code = new Vector<Character>();
 		tableCode = new TreeMap<String, String>();
 		compressBinaryMessage = new String();
-		middleLen = 0;
+		middleLen = 0.d;
+		averageSizeOneBlock = 0.d;
+		numberInsignificantBits = 0;
 	}
 	
 	public void compress() {
@@ -59,8 +56,8 @@ public class Shennon {
 		countingRelativeFrequencyLetters();
 		
 		mapCountAlphabetToLinkedList();
-		System.out.println(listsTree);
-		root = new Node(null, listsTree.size());
+		
+		root = new Node(null, summaList(listsTree) );
 		buildingBinaryTree(listsTree, root);
 		
 		buildingTableCode(root);
@@ -68,6 +65,7 @@ public class Shennon {
 		compressingBinaryMessage();
 		
 		calcMiddleLenBlock();
+		calcAverageSizeOneBlock();
 	}
 	
 	public boolean isCheckDivisionSizeMessageOnLen() {
@@ -80,6 +78,8 @@ public class Shennon {
 		//исправление в случае ошибки
 		if (isCheckDivisionSizeMessageOnLen()) {
 			int mod = binaryMessage.length() % len;
+			//запоминаем кол-во незначащих доп нулей
+			numberInsignificantBits = mod; 
 			for (int i = 0; i < mod; i++) {
 				StringBuilder strBuilder = new StringBuilder(binaryMessage);
 				binaryMessage = strBuilder.insert(0, '0').toString();
@@ -118,11 +118,9 @@ public class Shennon {
 			Integer value = (Integer)entry.getValue();
 			
 			listsTree.add(new Node(key, value));
-			
-			System.out.println("Key: " + entry.getKey() + " Value: " + entry.getValue());
 		}
 		
-		
+		listsForPrint =  new LinkedList(listsTree);
 		listsTree.sort(null);
 	}
 	
@@ -154,12 +152,13 @@ public class Shennon {
 		return i;
 	}
 	
+
 	
 	public void buildingBinaryTree(LinkedList<Node> СountAlphabet, Node node) {
 		if (СountAlphabet.size() == 1) {
 			String str = СountAlphabet.iterator().next().getNameBlock();
 			node.setNameBlock(str);
-			node.setNumber(СountAlphabet.size());
+			node.setNumber( summaList(СountAlphabet) );
 			return;
 		}
 		
@@ -169,6 +168,7 @@ public class Shennon {
 		LinkedList<Node> alphabetRight = new LinkedList<Node>();
 		
 		//********************************
+		//разделение
 		//indMiddleLen, СountAlphabet, ind0, ind1
 		Iterator<Node> itr = СountAlphabet.iterator();
 		//mapLeft
@@ -191,8 +191,8 @@ public class Shennon {
 		}
 		//***************************************
 		
-		node.setLeft (new Node( null, alphabetLeft.size() ));
-		node.setRight(new Node( null, alphabetRight.size() ));
+		node.setLeft (new Node( null, summaList(alphabetLeft) ));
+		node.setRight(new Node( null, summaList(alphabetRight) ));
 		
 		
 		buildingBinaryTree(alphabetLeft, node.getLeft());
@@ -232,7 +232,7 @@ public class Shennon {
 	
 	public void print(Node node, int k) {
 		if (node != null) {
-			print(node.getLeft(), k+3);
+			print(node.getLeft(), k+len*2);
 			
 			for (int i = 0; i < k; i++)
 				System.out.print(' ');
@@ -242,38 +242,85 @@ public class Shennon {
 			else
 				System.out.println(node.getNumber());
 			
-			print(node.getRight(), k+3);
+			print(node.getRight(), k+len*2);
 		}
 	}
 	
+	public int summaList(LinkedList<Node> list) {
+		int sum = 0;
+		
+		for (Node i: list)
+			sum += i.getNumber();
+		
+		return sum;
+	}
+	
 	public void calcMiddleLenBlock() {
-		for (String i: blockMessage) {
-			middleLen += tableCode.get(i).length();
+		Iterator itr = tableCode.entrySet().iterator();
+		int numberBlock = blockMessage.size(); //кол-во блоков
+		
+		while (itr.hasNext()) {
+			Entry entry = (Entry)itr.next();
+			
+			String key = (String)entry.getKey();
+			Integer lenCodeBlock = ((String)entry.getValue()).length();
+			Integer countBlock = countAlphabet.get(key); //кол-во вхождений li блока в сообщение
+			
+			middleLen += lenCodeBlock * ((double)countBlock / numberBlock);
 		}
-		middleLen /= blockMessage.size();
+		//удаляем лишнии нули
+		//кол-во вхождений l(i=0) блока в сообщение
+		Integer countBlock = countAlphabet.get(blockMessage.get(0)); 
+		middleLen -= numberInsignificantBits * ((double)countBlock / numberBlock);
+	}
+	
+	public void calcAverageSizeOneBlock() {
+		averageSizeOneBlock = middleLen / len;
 	}
 	
 	public void toResultCompress() {
 		//результат уменьшения информации
-		System.out.println("Message = " + binaryMessage);
-		System.out.println("alphabet = " + countAlphabet);
+		System.out.println("Сообщение = " + binaryMessage);
+		//********************************************
+		//вероятность блоков
+		System.out.println("алфавит: ");
 		
-		System.out.println("Tree: ");
+		Iterator<Node> itr = listsForPrint.iterator();
+		System.out.println("Блок Вероятность");
+		while (itr.hasNext()) {
+			Node node = itr.next();
+			int lenBinaryMessage = blockMessage.size();
+			int value = node.getNumber();
+			System.out.printf("%s    %d / %d\n", node.getNameBlock(), value, lenBinaryMessage);
+		}
+		//**************************************************
+		System.out.println("\nСписок кодов: ");
+		
+		Iterator it = tableCode.entrySet().iterator();
+		System.out.println("Слово Код  Длина кода");
+		while (it.hasNext()) {
+			Entry entry = (Entry) it.next();
+			String key = (String)entry.getKey();
+			String value = (String)entry.getValue();
+			System.out.printf("%3s %4s   %d\n", key, value, value.length());
+		}
+		//*************************************************************
+		//вывод дерева
+		System.out.println("\nДерево: ");
 		print(root, 0);
 		
-		System.out.println("ListCode: ");
-		System.out.println(tableCode);
 		
+		
+		//*****************************************************************
 		System.out.println("CodeString = " + compressBinaryMessage);
 		
 		int binMessLen = binaryMessage.length();
 		int comprBinMessLen = compressBinaryMessage.length();
 		
-		System.out.printf("n0 / n = %d / %d = %.2f\n", binMessLen, 
-				comprBinMessLen, (double)binMessLen / comprBinMessLen);
+		System.out.printf("n0 / n = %d / %d = %.2f\n", comprBinMessLen, 
+				 binMessLen-numberInsignificantBits, (double)comprBinMessLen / binMessLen );
 		//изменение длины блока после кодирования
-		System.out.println("len block = " + len);
-		System.out.println("middle len block = " + middleLen);
-		System.out.printf("len block / middle len block = %.2f\n", (double)len / middleLen);
+		System.out.printf("Средняя длина блока = %.3f\n", middleLen);
+		System.out.printf("средний размер одного блока = %.3f\n", averageSizeOneBlock); 
 	}
 }

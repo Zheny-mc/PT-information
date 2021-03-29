@@ -21,7 +21,11 @@ public class Haffman {
 
 	//выход
 	private String compressBinaryMessage;
-	int middleLen;
+	private double middleLen;
+	private double averageSizeOneBlock;
+	
+	//для вывода
+	private LinkedList<Node> listsForPrint;
 	
 	//для работы алгоритма
 	private Map<String, Integer> countAlphabet;
@@ -30,7 +34,8 @@ public class Haffman {
 	
 	private Vector<Character> code;
 	private Map<String, String> tableCode;
-	
+	//кол-во незначащих нулей
+	private int numberInsignificantBits;
 	
 	public Haffman(String binaryMessage, int len) {
 		this.len = len;
@@ -42,7 +47,9 @@ public class Haffman {
 		code = new Vector<Character>();
 		tableCode = new TreeMap<String, String>();
 		compressBinaryMessage = new String();
-		middleLen = 0;
+		middleLen = 0.d;
+		averageSizeOneBlock = 0.d;
+		numberInsignificantBits = 0;
 	}
 	
 	public void compress() {
@@ -62,6 +69,7 @@ public class Haffman {
 		compressingBinaryMessage();
 		
 		calcMiddleLenBlock();
+		calcAverageSizeOneBlock();
 	}
 	
 	
@@ -75,6 +83,7 @@ public class Haffman {
 		//исправление в случае ошибки
 		if (isCheckDivisionSizeMessageOnLen()) {
 			int mod = binaryMessage.length() % len;
+			numberInsignificantBits = mod;
 			for (int i = 0; i < mod; i++) {
 				StringBuilder strBuilder = new StringBuilder(binaryMessage);
 				binaryMessage = strBuilder.insert(0, '0').toString();
@@ -83,34 +92,71 @@ public class Haffman {
 	}
 	
 	public void calcMiddleLenBlock() {
-		for (String i: blockMessage) {
-			middleLen += tableCode.get(i).length();
+		Iterator itr = tableCode.entrySet().iterator();
+		int numberBlock = blockMessage.size(); //кол-во блоков
+		
+		while (itr.hasNext()) {
+			Entry entry = (Entry)itr.next();
+			
+			String key = (String)entry.getKey();
+			Integer lenCodeBlock = ((String)entry.getValue()).length();
+			Integer countBlock = countAlphabet.get(key); //кол-во вхождений li блока в сообщение
+			
+			middleLen += lenCodeBlock * ((double)countBlock / numberBlock);
 		}
-		middleLen /= blockMessage.size();
+		
+		//удаляем лишнии нули
+		//кол-во вхождений l(i=0) блока в сообщение
+		Integer countBlock = countAlphabet.get(blockMessage.get(0)); 
+		middleLen -= numberInsignificantBits * ((double)countBlock / numberBlock);
+	}
+	
+	public void calcAverageSizeOneBlock() {
+		averageSizeOneBlock = middleLen / len;
 	}
 	
 	public void toResultCompress() {
 		//результат уменьшения информации
-		System.out.println("Message = " + binaryMessage);
-		System.out.println("alphabet = " + countAlphabet);
+		System.out.println("Сообщение = " + binaryMessage);
+		//********************************************
+		//вероятность блоков
+		System.out.println("алфавит: ");
 		
-		System.out.println("Tree: ");
+		Iterator<Node> itr = listsForPrint.iterator();
+		System.out.println("Блок Вероятность");
+		while (itr.hasNext()) {
+			Node node = itr.next();
+			int lenBinaryMessage = blockMessage.size();
+			int value = node.getNumber();
+			System.out.printf("%s    %d / %d\n", node.getNameBlock(), value, lenBinaryMessage);
+		}
+		//**************************************************
+		System.out.println("\nСписок кодов: ");
+		
+		Iterator it = tableCode.entrySet().iterator();
+		System.out.println("Слово Код  Длина кода");
+		while (it.hasNext()) {
+			Entry entry = (Entry) it.next();
+			String key = (String)entry.getKey();
+			String value = (String)entry.getValue();
+			System.out.printf("%3s %4s   %d\n", key, value, value.length());
+		}
+		//*************************************************************
+		//вывод дерева
+		System.out.println("\nДерево: ");
 		print(root, 0);
 		
-		System.out.println("ListCode: ");
-		System.out.println(tableCode);
-		
+		//*****************************************************************
 		System.out.println("CodeString = " + compressBinaryMessage);
 		
 		int binMessLen = binaryMessage.length();
 		int comprBinMessLen = compressBinaryMessage.length();
 		
-		System.out.printf("n0 / n = %d / %d = %.2f\n", binMessLen, 
-				comprBinMessLen, (double)binMessLen / comprBinMessLen);
+		System.out.printf("n0 / n = %d / %d = %.2f\n", comprBinMessLen, 
+				 binMessLen-numberInsignificantBits, (double)comprBinMessLen / binMessLen );
 		//изменение длины блока после кодирования
-		System.out.println("len block = " + len);
-		System.out.println("middle len block = " + middleLen);
-		System.out.printf("len block / middle len block = %.2f\n", (double)len / middleLen);
+		System.out.printf("Средняя длина блока = %.3f\n", middleLen);
+		System.out.printf("средний размер одного блока = %.3f\n", averageSizeOneBlock); 
 	}
 	
 	private void splitingArray() {
@@ -150,27 +196,20 @@ public class Haffman {
 			//добавлние листа
 		    listsTree.add(new Node(key, value));
 		}
-		
-		//Iterator<Node> i = listsTree.iterator();
-		//while (i.hasNext()) {
-		//	System.out.println(i.next() + " ");
-		//}
+	
+		listsForPrint = new LinkedList<Node>(listsTree);
 		
 		while (listsTree.size() != 1) {
 			listsTree.sort(null);
-			//System.out.println("sort = " + listsTree);
 			
 			Node sonL = listsTree.pollFirst(); 
 			Node sonR = listsTree.pollFirst();
-			//System.out.println("delete = " + listsTree);
 			
 			Node parent = new Node(sonL, sonR);
 			listsTree.addLast(parent);
-			//System.out.println("add Parent = " + listsTree);
 		}
 		
 		root = listsTree.getFirst();
-		//System.out.println(root);
 	}
 	
 	//получение результов(кодов символов)
@@ -206,7 +245,7 @@ public class Haffman {
 	
 	public void print(Node node, int k) {
 		if (node != null) {
-			print(node.getLeft(), k+len);
+			print(node.getLeft(), k+len*2);
 			
 			for (int i = 0; i < k; i++)
 				System.out.print(' ');
@@ -216,7 +255,7 @@ public class Haffman {
 			else
 				System.out.println(node.getNumber());
 			
-			print(node.getRight(), k+len);
+			print(node.getRight(), k+len*2);
 		}
 	}
 }
